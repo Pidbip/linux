@@ -1,0 +1,87 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+/* Overlay for two EVAL-ADIN2111EBZ connected to the same SPI bus.
+ * ADIN2111-CS0:
+ *	CS 	- SPI_CE0 (GPIO 8)
+ *      INT_N 	- GPIO 25
+ *	RESET_N - GPIO 22
+ *
+ * ADIN2111-CS0:
+ *	CS 	- SPI_CE1 (GPIO 7)
+ *      INT_N 	- GPIO 24
+ *	RESET_N - GPIO 27
+ *
+ * ADIN2111-CS1:
+ * Copyright 2022 Analog Devices Inc.
+ */
+
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/gpio/gpio.h>
+
+&spidev0 {
+	status = "disabled";
+};
+
+&spidev1 {
+	status = "disabled";
+};
+
+&spi0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	ethernet@0 {
+		compatible = "adi,adin2111";
+		reg = <0>;
+		spi-max-frequency = <1000000>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		interrupt-parent = <&gpio>;
+		interrupts = <25 IRQ_TYPE_LEVEL_LOW>;
+		mac-address = [ CA AA B7 10 23 63 ];
+
+		reset-gpios = <&gpio 22 GPIO_ACTIVE_LOW>;
+
+		phy@0 {
+			compatible = "ethernet-phy-id0283.bca1";
+			reg = <0x0>;
+		};
+
+		phy@1 {
+			compatible = "ethernet-phy-id0283.bca1";
+			reg = <0x1>;
+		};
+	};
+
+	ethernet@1 {
+		compatible = "adi,adin2111";
+		reg = <1>;
+		spi-max-frequency = <1000000>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		interrupt-parent = <&gpio>;
+		interrupts = <24 IRQ_TYPE_LEVEL_LOW>;
+		mac-address = [ CA BB B7 10 23 63 ];
+
+		reset-gpios = <&gpio 27 GPIO_ACTIVE_LOW>;
+
+		phy@0 {
+			compatible = "ethernet-phy-id0283.bca1";
+			reg = <0x0>;
+		};
+
+		phy@1 {
+			compatible = "ethernet-phy-id0283.bca1";
+			reg = <0x1>;
+		};
+	};
+};
+
+
