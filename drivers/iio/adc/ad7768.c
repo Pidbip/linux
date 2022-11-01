@@ -54,6 +54,11 @@
 #define AD7768_INTERFACE_CFG_DCLK_DIV_MODE(x)	(((3-ilog2(x)) & 0x3) << 0)
 #define AD7768_MAX_DCLK_DIV			8
 
+#define AD7768_INTERFACE_CFG_CRC_SELECT_MSK	GENMASK(3, 2)
+/* only 4 samples CRC calculation support exists */
+#define AD7768_INTERFACE_CFG_CRC_SELECT(x)	(((x) & 0x3) << 2)
+#define AD7768_INTERFACE_CFG_GET_CRC_STATUS(x)	(((x) >> 2) & 0x3)
+
 #define AD7768_MAX_SAMP_FREQ_MLINES    256000
 #define AD7768_MAX_SAMP_FREQ_1LINE     128000
 #define AD7768_WR_FLAG_MSK(x)	(0x80 | ((x) & 0x7F))
@@ -369,6 +374,50 @@ static const struct iio_enum ad7768_filter_type_iio_enum = {
 	.get = ad7768_get_filter_type
 };
 
+static int ad7768_get_crc_status(struct iio_dev *dev,
+				  const struct iio_chan_spec *chan)
+{
+	struct ad7768_state *st = ad7768_get_data(dev);
+	unsigned int status;
+	int ret;
+
+	ret = ad7768_spi_reg_read(st, AD7768_INTERFACE_CFG, &status);
+	if (ret < 0)
+		return ret;
+
+	return AD7768_INTERFACE_CFG_GET_CRC_STATUS(status);
+}
+
+static int ad7768_set_crc_status(struct iio_dev *dev,
+				 const struct iio_chan_spec *chan,
+				 unsigned int status)
+{
+	struct ad7768_state *st = ad7768_get_data(dev);
+	struct axiadc_state *axi_adc_st = iio_priv(dev);
+	int ret;
+
+	axiadc_write(axi_adc_st, ADI_REG_CNTRL_3, ADI_CRC_EN(status));
+	ret =  ad7768_spi_write_mask(st, AD7768_INTERFACE_CFG,
+				     AD7768_INTERFACE_CFG_CRC_SELECT_MSK,
+				     AD7768_INTERFACE_CFG_CRC_SELECT(status));
+	if (ret < 0)
+		return ret;
+
+	return ad7768_sync(st);
+}
+
+static const char * const ad7768_crc_status_enum[] = {
+	"disabled",
+	"enabled"
+};
+
+static const struct iio_enum ad7768_crc_status_iio_enum = {
+	.items = ad7768_crc_status_enum,
+	.num_items = ARRAY_SIZE(ad7768_crc_status_enum),
+	.set = ad7768_set_crc_status,
+	.get = ad7768_get_crc_status
+};
+
 static int ad7768_set_sampling_freq(struct iio_dev *dev,
 				    unsigned int freq)
 {
@@ -495,6 +544,12 @@ static struct iio_chan_spec_ext_info ad7768_ext_info[] = {
 	IIO_ENUM_AVAILABLE_SHARED("filter_type",
 				  IIO_SHARED_BY_ALL,
 				  &ad7768_filter_type_iio_enum),
+	IIO_ENUM("crc_status",
+		 IIO_SHARED_BY_ALL,
+		 &ad7768_crc_status_iio_enum),
+	IIO_ENUM_AVAILABLE_SHARED("crc_status",
+				  IIO_SHARED_BY_ALL,
+				  &ad7768_crc_status_iio_enum),
 	{ },
 
 };
