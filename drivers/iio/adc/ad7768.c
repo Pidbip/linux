@@ -79,6 +79,7 @@ struct ad7768_state {
 	struct clk *mclk;
 	unsigned int datalines;
 	unsigned int sampling_freq;
+	struct gpio_desc *gpio_reset_n;
 	enum ad7768_power_modes power_mode;
 	__be16 d16;
 };
@@ -671,6 +672,13 @@ static int ad7768_probe(struct spi_device *spi)
 		return ret;
 
 	st->spi = spi;
+
+	/* get out of reset state */
+	st->gpio_reset_n = devm_gpiod_get_optional(&spi->dev, "reset-n",
+						   GPIOD_OUT_LOW);
+	if (IS_ERR(st->gpio_reset_n))
+		return dev_err_probe(&spi->dev, PTR_ERR(st->gpio_reset_n),
+				     "failed to get the gpio reset-n\n");
 
 	ret = of_property_read_u32(st->spi->dev.of_node, "adi,data-lines",
 				  &st->datalines);
