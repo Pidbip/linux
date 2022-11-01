@@ -66,6 +66,7 @@
 
 #define SAMPLE_SIZE				32
 #define NUM_CHANNELS				8
+
 enum ad7768_power_modes {
 	AD7768_LOW_POWER_MODE,
 	AD7768_MEDIAN_MODE = 2,
@@ -223,27 +224,36 @@ static int ad7768_set_clk_divs(struct ad7768_state *st,
 			       unsigned int freq)
 {
 	unsigned int mclk, dclk_div, dec, div;
+	unsigned int chan_per_doutx;
+	unsigned int dclk;
 	unsigned int result = 0;
 	int ret = 0;
 
 	mclk = clk_get_rate(st->mclk);
-	for (dclk_div = 0; dclk_div < 4 ; dclk_div++) {
-		for (dec = 0; dec < ARRAY_SIZE(ad7768_dec_rate); dec++) {
-			div = mclk_div *
-			      (1 <<  (3 - dclk_div)) *
-			      ad7768_dec_rate[dec];
-			result = DIV_ROUND_CLOSEST_ULL(mclk, div);
-			if (freq == result)
-				break;
-		}
+	chan_per_doutx = NUM_CHANNELS / st->datalines;
+
+	for (dec = 0; dec < ARRAY_SIZE(ad7768_dec_rate); dec++) {
+		div = mclk_div * ad7768_dec_rate[dec];
+		result = DIV_ROUND_CLOSEST_ULL(mclk, div);
+		if (freq == result)
+			break;
 	}
+
 	if (freq != result)
 		return -EINVAL;
+
+	dclk = result * SAMPLE_SIZE * chan_per_doutx;
+	dclk_div = DIV_ROUND_CLOSEST_ULL(mclk, dclk);
+
+	if (dclk_div > AD7768_MAX_DCLK_DIV)
+		dclk_div = AD7768_MAX_DCLK_DIV;
+
 	ret = ad7768_spi_write_mask(st, AD7768_INTERFACE_CFG,
 			AD7768_INTERFACE_CFG_DCLK_DIV_MSK,
-			AD7768_INTERFACE_CFG_DCLK_DIV_MODE(3 - dclk_div));
+			AD7768_INTERFACE_CFG_DCLK_DIV_MODE(dclk_div));
 	if (ret < 0)
 		return ret;
+
 	return ad7768_spi_write_mask(st, AD7768_CH_MODE,
 				     AD7768_CH_MODE_DEC_RATE_MSK,
 				     AD7768_CH_MODE_DEC_RATE_MODE(dec));
