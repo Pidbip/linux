@@ -18,7 +18,7 @@
 	aliases: aliases {
 		ethernet0 = &gem0;
 		serial0 = &uart1;
-		serial1 = "/amba@0/uart@E0000000";
+		serial1 = &uart0;
 	};
 
 	memory {
